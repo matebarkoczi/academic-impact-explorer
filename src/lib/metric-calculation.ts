@@ -37,7 +37,7 @@ function getGlobalRCA(qSpec: QcSpec, onLevel: number, derivedTree: DerivedTreeNo
 function continentLevelRca(qSpec: QcSpec, onLevel: number, derivedTree: DerivedTreeNode | undefined, rootMeta: RootMeta) {
 
     const attKind = qSpec.bifurcations[onLevel].attribute_kind;
-    const rootContinent = rootMeta.continent;
+    const rootContinent = rootMeta.continent__id;
 
     const rcaBaseOverall: OMap<OMap<number>> | undefined = continentRcaBases[attKind];
 
