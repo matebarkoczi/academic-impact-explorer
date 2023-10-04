@@ -223,14 +223,18 @@
 
 <div class="treefix">
 	<div class="treehead">
-		<div class="filt-side" style="--sb-size: {sideBarWidth}">FILTER</div>
-		<div class="main-side" style="--tree-size: {treeWidth}">
+		<div class="filt-side" style="--sb-size: {(100 * sideBarWidth) / svgWidth}%">
+			<span><b style="color: magenta;">TODO: </b></span>
+			<span>control-panel here</span>
+		</div>
+		<div class="main-side" style="--tree-size: {(100 * treeWidth) / svgWidth}%">
 			<AutoComplete
 				items={qcRootOptions}
 				bind:selectedItem={selectedQcRootOption}
 				labelFieldName="name"
 				valueFieldName="id"
 				hideArrow={true}
+				className={'inst-search'}
 			/>
 		</div>
 	</div>
@@ -300,16 +304,23 @@
 	}
 
 	.filt-side {
-		flex: var(--sb-size) var(--sb-size) auto;
+		flex: 0 0 var(--sb-size);
+		display: flex;
+		flex-wrap: wrap;
+	}
+
+	.filt-side > span {
+		margin: 20px;
+	}
+
+	:global(.inst-search) {
+		margin: 15px;
+		font-size: x-large;
 	}
 
 	.main-side {
 		display: flex;
 		justify-content: center;
-		flex: var(--tree-size) var(--tree-size) auto;
-	}
-
-	.treehead > div {
-		padding: 10px;
+		flex: 0 0 var(--tree-size);
 	}
 </style>

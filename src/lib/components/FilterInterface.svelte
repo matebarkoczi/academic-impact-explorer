@@ -50,8 +50,8 @@
 			</g>
 		{/if}
 
-		<g style="--y-off: {fullHeight * 0.75}px; --x-off: {padSize}px">
-			<foreignObject width="50" height="30" transform="scale({numScale},{numScale})">
+		<g style="--y-off: {fullHeight * 0.72}px; --x-off: {padSize}px">
+			<foreignObject width="60" height="35" transform="scale({numScale},{numScale})">
 				<input type="number" bind:value={filterSpecs[index].top_n} min="1" max={maxOnOneLevel} />
 			</foreignObject>
 		</g>
