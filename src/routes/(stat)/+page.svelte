@@ -28,6 +28,9 @@
 		<h1>Explore the impact of an academic institution!</h1>
 		<AutoComplete
 			className={'inst-selector'}
+			inputClassName={'inst-input'}
+			dropdownClassName={'inst-dropdown'}
+			selectId={'inst-selected'}
 			items={instOptions}
 			{onChange}
 			labelFieldName="name"
@@ -59,5 +62,22 @@
 
 	:global(.inst-selector) {
 		font-size: x-large;
+		width: 100%;
+	}
+	:global(.inst-input) {
+		background-color: rgba(var(--color-range-20), 0.1);
+		border: 2px solid rgba(var(--color-range-55), 0.45);
+		border-radius: 4px;
+		width: 100%;
+	}
+	:global(.inst-dropdown) {
+		background-color: rgba(var(--color-range-20), 0.1) !important;
+		border: 2px solid rgba(var(--color-range-55), 0.45);
+		border-radius: 4px;
+	}
+
+	:global(.selected) {
+		text-decoration: underline;
+		font-weight: bolder;
 	}
 </style>
