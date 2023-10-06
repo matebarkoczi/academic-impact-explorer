@@ -2,78 +2,113 @@
 	import { getColorArr } from '$lib/style-util';
 	import type { TreeNode } from '$lib/tree-types';
 	import BrokenFittedText from './BrokenFittedText.svelte';
+	import { fade } from 'svelte/transition';
 
 	export let data: TreeNode;
+	export let maxPad = 10;
+	export let width = 1000;
+	export let height = 1000;
+	export let combined = false;
+	export let colorStart = 0;
+	export let colorEnd = 1;
+	export let transitionMs = 400;
 
 	$: childVals = Object.values(data.children || {});
 	$: sumW = childVals?.reduce((l, r) => l + r.weight, 0);
+	$: pad = combined ? 0 : maxPad;
 
-	const flats = [];
+	function getColorRate(i: number, combined: boolean) {
+		if (combined) {
+			return (colorStart + colorEnd) / 2;
+		}
+		return colorStart + (colorEnd - colorStart) * (i / childVals.length);
+	}
 
 	function bsp(
 		subc: TreeNode[],
 		offsets: number[],
 		sizes: number[],
+		sumWeight: number,
 		offsetIndex: number,
-		scaleRate: number
+		flats: { name: string; offsets: number[]; sizes: number[] }[],
+		pad: number
 	) {
 		if (subc.length == 1) {
-			return flats.push({ name: subc[0].name, offsets, sizes });
+			const tureSizes = sizes.map((x) => x - pad);
+			if (Math.min(...tureSizes) > 0) {
+				flats.push({
+					name: subc[0].name,
+					offsets: offsets.map((x) => x + pad),
+					sizes: tureSizes
+				});
+			}
+			return flats;
 		}
-		let sideSum = subc[0].weight * scaleRate;
+		let preSideSumWeight = subc[0].weight;
 		let i = 1;
 		let e;
 		while (i < subc.length - 1) {
 			e = subc[i];
-			sideSum += e.weight * scaleRate;
-			if (sideSum > sizes[offsetIndex] / 2) {
+			preSideSumWeight += e.weight;
+			i++;
+			if (preSideSumWeight > sumWeight / 2) {
 				break;
 			}
-			i++;
 		}
+
+		const preSideSumSize = (preSideSumWeight / sumWeight) * sizes[offsetIndex];
 
 		const valAdder = (arr: number[], addval: number) =>
 			arr.map((v, _i) => (_i == offsetIndex ? v + addval : v));
 
-		const postOffsets = valAdder(offsets, sideSum);
-		const postSizes = valAdder(sizes, -sideSum);
-		const preSizes = sizes.map((v, _i) => (_i == offsetIndex ? sideSum : v));
+		const postOffsets = valAdder(offsets, preSideSumSize);
+		const postSizes = valAdder(sizes, -preSideSumSize);
+		const preSizes = valAdder(sizes, preSideSumSize - sizes[offsetIndex]);
 		const newOffsetIndex = (offsetIndex + 1) % offsets.length;
+		const bcall = (slice, osets, sizes, w) =>
+			bsp(slice, osets, sizes, w, newOffsetIndex, flats, pad);
 		if (i > 0) {
-			bsp(subc.slice(0, i), offsets, preSizes, newOffsetIndex, sizes[newOffsetIndex] / sideSum);
+			bcall(subc.slice(0, i), offsets, preSizes, preSideSumWeight);
 		}
 		if (i < subc.length) {
-			bsp(
-				subc.slice(i),
-				postOffsets,
-				postSizes,
-				newOffsetIndex,
-				sizes[newOffsetIndex] / (sizes[offsetIndex] - sideSum)
-			);
+			bcall(subc.slice(i), postOffsets, postSizes, sumWeight - preSideSumWeight);
 		}
+		return flats;
 	}
 
-	$: bsp(childVals || [], [0, 0], [sumW, sumW], 0, 1);
+	$: flats = bsp(childVals || [], [0, 0], [width, height], sumW, 0, [], pad);
 </script>
 
-<svg width="100%" height="100%" viewBox="0 0 {sumW} {sumW}">
+<g style="--transition-ms: {transitionMs}ms;">
 	{#each flats as node, i}
-		<g transform="translate({node.offsets[0]}, {node.offsets[1]})">
-			<rect
-				width={node.sizes[0]}
-				height={node.sizes[1]}
-				style="--crgb: {getColorArr(i / flats.length)}"
-			/>
-			<g transform="translate(0, {node.sizes[1]})">
+		<rect
+			x={node.offsets[0]}
+			y={node.offsets[1]}
+			width={node.sizes[0]}
+			height={node.sizes[1]}
+			style="--crgb: {getColorArr(getColorRate(i, combined))}"
+		/>
+	{/each}
+</g>
+
+{#if !combined}
+	<g transition:fade={{ duration: transitionMs }}>
+		{#each flats as node}
+			<g transform="translate({node.offsets[0]}, {node.offsets[1] + node.sizes[1]})">
 				<BrokenFittedText text={node.name} width={node.sizes[0]} height={node.sizes[1]} />
 			</g>
-		</g>
-	{/each}
-</svg>
+		{/each}
+	</g>
+{:else}
+	<g transform="translate(0, {height})" transition:fade={{ duration: transitionMs }}>
+		<BrokenFittedText text={data.name} {width} {height} />
+	</g>
+{/if}
 
 <style>
 	rect {
 		border: 30px solid black;
 		fill: rgba(var(--crgb), 0.6);
+		transition: var(--transition-ms);
 	}
 </style>

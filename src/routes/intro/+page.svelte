@@ -1,40 +1,152 @@
-<h1>
-	In a world where every country wants to become a knowledge powerhouse, we need more than
-	university rankings.
-</h1>
+<script lang="ts">
+	import rankedUniData from '$lib/assets/data/intro-stats.json';
+	import { headLines } from '$lib/assets/data/intro-headlines.json';
 
-<h1>
-	Universities are a source of cultural and economic growth. They attract talent, educate the
-	population, and help produce important innovations
-</h1>
+	import TileTreeMap from '$lib/components/TileTreeMap.svelte';
+	import type { OMap, TreeNode } from '$lib/tree-types';
 
-<h1>
-	But the impact of universities cannot be reduced to a single number. Knowledge is highly specific,
-	and so is the impact of universities.
-</h1>
+	let scrollState = 0;
+	const scrollStepSize = 1000;
+	const minFrame = -2;
+	const maxFrame = 15;
 
-<h1>
-	Universities specialize in fields and have important local networks of collaboration. Isn't it
-	time we understand them in their right context.
-</h1>
+	$: currentFrameNum = Math.floor(scrollState / scrollStepSize);
 
-<h1>
-	Consider three similarly “ranked” universities. The Swedish University of Agricultural Sciences
-	(SLU), the University of Belgrade, in Serbia, and the University of Lille, in France. SLU is
-	contributes knowledge in Ecology, Environmental Science, and Geography and is cited mostly by
-	scholars from XXX, YYY, and ZZZ universities.The University of Belgrade, contributes knowledge on
-	X, Y, and Z and is cited by X, Y, and Z universities.The University of Lille in France, is best
-	known for mathematics, and is cited by X, Y, and Z.
-</h1>
+	function getMinHeadline<T>(i: number, frames: T) {
+		for (const frame of frames) {
+			if (frame.frame >= i) {
+				return frame;
+			}
+		}
+		return frames[frames.length - 1];
+	}
 
-<h1>
-	Academic impact is not a single thing, but a rich kaleidoscope of topics and geographies that can
-	be exciting to explore. Go ahead and explore impact beyond rankings, at the academic impact
-	explorer.
-</h1>
+	$: currentHeadline = getMinHeadline(currentFrameNum, headLines).text;
+
+	//maybe include RCA?
+	// 1. ranking, cross out and remove rankings and scores, move name out of tile
+	// 2. globally topics
+	// 3. continent divided countries, rejoin before redivide
+	// + how much data is used  -> you know exactly what is behind it
+
+	type SvgFrame = {
+		frame: number;
+		elems: OMap<{
+			x: number;
+			y: number;
+			height: number;
+			width: number;
+			data: TreeNode;
+			combined: boolean;
+		}>;
+		texts: { x: number; y: number; text: string }[];
+	};
+
+	function getFrames(): SvgFrame[] {
+		const trueFrames = [];
+
+		for (const frameNum of [0, 2, 3, 5, 9]) {
+			const texts = [];
+			let elems = {};
+			for (const [i, [uniK, uniD]] of Object.entries(rankedUniData).entries()) {
+				if (frameNum > 2) {
+					texts.push({ x: 110 + 330 * i, y: 50, text: uniD.name });
+				}
+
+				if (frameNum < 2) {
+					texts.push({
+						x: 700,
+						y: 150 + 330 * i,
+						text: 'Shanghai 2023 Rank: ' + uniD.outsideRanks.ShaRank
+					});
+					texts.push({
+						x: 700,
+						y: 220 + 330 * i,
+						text: 'THE 2024 Rank: ' + uniD.outsideRanks.TheRank
+					});
+					texts.push({
+						x: 700,
+						y: 290 + 330 * i,
+						text: 'THE 2024 Score: ' + uniD.outsideRanks.TheScore
+					});
+				}
+
+				elems[uniK.toString()] = {
+					x: frameNum < 2 ? 50 : 100 + 330 * i,
+					y: frameNum < 2 ? 100 + 330 * i : 50,
+					height: frameNum < 2 ? 220 : 900,
+					width: frameNum < 2 ? 600 : 220,
+					data: frameNum < 4 ? uniD.conceptTree : uniD.countryTree,
+					combined: frameNum < 3
+				};
+			}
+			trueFrames.push({ frame: frameNum, texts, elems });
+		}
+		return trueFrames;
+	}
+
+	const trueFrames = getFrames();
+
+	let currentSvgFrame: SvgFrame;
+	$: currentSvgFrame = getMinHeadline(currentFrameNum, trueFrames);
+
+	function changeScroll(e: WheelEvent) {
+		scrollState = Math.min(
+			Math.max(scrollState - e.wheelDeltaY, minFrame * scrollStepSize),
+			maxFrame * scrollStepSize
+		);
+	}
+</script>
+
+<div on:wheel={changeScroll} class="main">
+	<div class="left">
+		<h1>{scrollState}</h1>
+		<h1>{currentHeadline}</h1>
+	</div>
+	<div class="right">
+		<svg width="80%" height="80%" viewBox="-50 -50 {1100} {1100}">
+			{#each Object.entries(currentSvgFrame.elems) as [k, frame]}
+				<g style="--x-off: {frame.x}px; --y-off: {frame.y}px">
+					<TileTreeMap
+						data={frame.data}
+						width={frame.width}
+						height={frame.height}
+						combined={frame.combined}
+						transitionMs={900}
+					/>
+				</g>
+			{/each}
+			{#each currentSvgFrame.texts as textElem}
+				<g style="--x-off: {textElem.x}px; --y-off: {textElem.y}px">
+					<text>{textElem.text}</text>
+				</g>
+			{/each}
+		</svg>
+	</div>
+</div>
 
 <style>
+	.main {
+		height: 100%;
+		display: flex;
+	}
 	h1 {
 		padding: 20px;
+		transition: 400ms;
+	}
+
+	.left {
+		flex: 1 1 700px;
+		display: flex;
+		align-items: center;
+	}
+
+	.right {
+		flex: 2 2 1400px;
+	}
+
+	g {
+		transition: transform 0.8s;
+		transform: translate(var(--x-off), var(--y-off));
 	}
 </style>

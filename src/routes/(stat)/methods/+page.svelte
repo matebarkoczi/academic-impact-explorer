@@ -90,7 +90,9 @@
 	<div class="bar">
 		<h1>We utilize predefined classification, and calculate simple metrics.</h1>
 		<div class="tile-container">
-			<TileTreeMap data={oalexConcepts} />
+			<svg height="100%" width="100%" viewBox="0 0 1000 1000">
+				<TileTreeMap data={oalexConcepts} maxPad={10} />
+			</svg>
 		</div>
 	</div>
 </div>
