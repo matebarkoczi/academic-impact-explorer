@@ -2,10 +2,10 @@
 	import { base } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { INSTITUTION_TYPE } from '$lib/constants';
-	import { handleStore } from '$lib/tree-functions';
 	import type { SelectionOption } from '$lib/tree-types';
 	import AutoComplete from 'simple-svelte-autocomplete';
 	import { onMount } from 'svelte';
+	import { handleStore } from '$lib/tree-loading';
 
 	let instOptions: SelectionOption[] = [];
 
@@ -18,7 +18,7 @@
 
 	function onChange(e: SelectionOption | undefined) {
 		if (e != undefined) {
-			goto(`${base}/view/${INSTITUTION_TYPE}/${e.id}`);
+			goto(`${base}/view/${INSTITUTION_TYPE}/${e.id}`); //TODO this is capitalized!!
 		}
 	}
 </script>
@@ -71,7 +71,7 @@
 		width: 100%;
 	}
 	:global(.inst-dropdown) {
-		background-color: rgba(var(--color-range-20), 0.1) !important;
+		background-color: rgba(var(--color-range-10), 0.6) !important;
 		border: 2px solid rgba(var(--color-range-55), 0.45);
 		border-radius: 4px;
 	}

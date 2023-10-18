@@ -3,7 +3,7 @@
 	import { headLines } from '$lib/assets/data/intro-headlines.json';
 
 	import TileTreeMap from '$lib/components/TileTreeMap.svelte';
-	import type { OMap, TreeNode } from '$lib/tree-types';
+	import type { OMap, NamedNode } from '$lib/tree-types';
 
 	let scrollState = 0;
 	const scrollStepSize = 1000;
@@ -36,7 +36,7 @@
 			y: number;
 			height: number;
 			width: number;
-			data: TreeNode;
+			data: NamedNode;
 			combined: boolean;
 		}>;
 		texts: { x: number; y: number; text: string }[];
