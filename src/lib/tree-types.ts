@@ -1,4 +1,8 @@
-export type OMap<T> = { [index: string]: T };
+import type { EntityType, GLOBAL_BASE_TYPE } from "./constants";
+
+export type OMap<T> = Record<string, T>;
+export type PathInTree = string[];
+export type TreeGen<T> = T & { children?: OMap<TreeGen<T>> };
 
 export type SelectionOption = {
     name: string;
@@ -13,62 +17,55 @@ export type QcSpec = {
 };
 
 export type Bifurcation = {
+    attribute_kind: EntityType;
     resolver_id: string;
-    attribute_kind: string;
-    filter_format_str: string;
-    available_metrics?: string[];
+    control_format_str: string;
     description: string;
 };
 
 
 export type QcSpecMap = OMap<QcSpec>;
-export type AttributeLabels = OMap<OMap<{ name: string; meta: string }>>;
+
+type AlGen<T> = OMap<OMap<{ name: string; meta: T }>>;
+
+export type AttributeLabelsRaw = AlGen<string>;
+export type AttributeLabels = AlGen<OMap<number | object>>;
 
 
-export type BareNode = { children: OMap<BareNode> };
-
-export type TreeNode = {
-    name: string;
-    weight: number;
-    children?: ChildrenMap
-};
-
-export type DerivedTreeNode = TreeNode & {
+export type BareNode = TreeGen<object>;
+export type WeightedNode = TreeGen<{ weight: number }>;
+export type NamedNode = TreeGen<{ weight: number; name: string }>;
+export type EmbeddedNode = TreeGen<{
+    weight: number,
+    name: string,
     childrenSumWeight: number;
     totalOffsetOnLevel: OffsetInfo
     totalOffsetAmongSiblings: OffsetInfo;
-    children: OMap<DerivedTreeNode>
-}
+    isSelected: boolean;
+    scaleEnds: { min: number; max: number; mid: number };
+    specMetric: { rawMetric: number; normalizedMetric: number };
+}>;
 
-export type ChildrenMap = OMap<TreeNode>;
 
-export type OffsetInfo = { rank: number; weight: number }
-
-export type HoveredInfo = {
-    name: string;
-    weight?: number;
-    path?: string[];
-    metricName?: string,
-    metricValue?: number,
-    weightOnDisplay?: number;
-    weightTotal?: number;
-};
+export type OffsetInfo = { rank: number; weight: number };
 
 export type InteractionKind = 'toggle-select' | 'highlight' | 'de-highlight';
+type SizeBaseKind = 'volume' | 'specialization';
 
-export type TreeInteractionEvent = {
-    path: string[]; action: InteractionKind; metricValue?: number
-}
+export type TreeInteractionEvent = { path: PathInTree; action: InteractionKind, topLeftCorner: { x: number, y: number } };
 
-export type DerivedLevelInfo = { totalWeight: number; totalNodes: number }
+export type IndexEvent = { ind: number };
 
-export type TreeInfo = { tree: DerivedTreeNode; meta: DerivedLevelInfo[] }
-export type FilterFunction = (children: ChildrenMap, path: string[], levelInfos: DerivedLevelInfo[]) => ChildrenMap
-export type FilterSpec = { exclude: string[], include: string[], top_n: number }
+export type DerivedLevelInfo = { totalWeight: number; totalNodes: number };
 
-export type LevelVisElem = { totalSize: number, topOffset: number }
-export type LevelVisual = LevelVisElem[]
+export type TreeInfo = { tree: EmbeddedNode; meta: DerivedLevelInfo[] };
+export type ControlSpec = { exclude: string[]; include: string[]; limit_n: number; show_top: boolean; size_base: SizeBaseKind };
 
-export type LevelMetrics = { possibleMetrics: string[]; selectedMetric: string }[];
+export type LevelVisElem = { totalSize: number; topOffset: number };
+export type LevelVisual = LevelVisElem[];
+
+export type SpecializationBasis = { basis: EntityType | typeof GLOBAL_BASE_TYPE; hierarchy: EntityType | typeof GLOBAL_BASE_TYPE };
+export type SomeSpecBaselineMap = OMap<OMap<OMap<number> | number> | number>;
+export type SpecBaseOptions = OMap<SomeSpecBaselineMap>;
 
 export type RootMeta = OMap<string | number>;

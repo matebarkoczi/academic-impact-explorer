@@ -3,18 +3,17 @@
 	import { fade } from 'svelte/transition';
 	import type {
 		TreeInteractionEvent,
-		DerivedTreeNode,
+		EmbeddedNode,
 		InteractionKind,
 		TreeInfo,
 		OffsetInfo,
 		LevelVisual,
 		AttributeLabels,
 		QcSpec,
-		LevelMetrics,
-		RootMeta
+		RootMeta,
+		BareNode
 	} from '$lib/tree-types';
-	import { getNodeByPath, getChildName } from '$lib/tree-functions';
-	import { getMetricCalcFuction, type MetricCalculator } from '$lib/metric-calculation';
+	import { getNodeByPath } from '$lib/tree-functions';
 	import { createEventDispatcher } from 'svelte';
 	import BrokenFittedText from './BrokenFittedText.svelte';
 	import { getColor } from '$lib/style-util';
@@ -22,9 +21,8 @@
 	export let qcSpec: QcSpec;
 	export let attributeLabels: AttributeLabels;
 	export let visibleTreeInfo: TreeInfo;
-	export let selectedTreeInfo: TreeInfo;
+	export let selectionState: BareNode;
 	export let levelVisuals: LevelVisual = [];
-	export let levelMetrics: LevelMetrics = [];
 	export let rootMeta: RootMeta = {};
 	export let pathInCompleteTree: string[] = [];
 
@@ -46,14 +44,16 @@
 
 	export let width = rootWidth;
 	export let xOffset = (treeWidth - rootWidth) / 2 + treeXOffset;
-	export let levelColorScaleMin = 0;
-	export let levelColorScaleMax = 1;
 
 	const dispatch = createEventDispatcher<{ 'tree-interaction': TreeInteractionEvent }>();
 
-	function treeInteract(action: InteractionKind, id: string, metricValue: number | undefined) {
+	function treeInteract(action: InteractionKind, id: string, x: number, y: number) {
 		return () => {
-			dispatch('tree-interaction', { path: [...pathInCompleteTree, id], action, metricValue });
+			dispatch('tree-interaction', {
+				path: [...pathInCompleteTree, id],
+				action,
+				topLeftCorner: { x, y }
+			});
 		};
 	}
 
@@ -67,7 +67,6 @@
 
 	$: onLevel = pathInCompleteTree.length;
 	$: visibleNode = getNodeByPath(pathInCompleteTree, visibleTreeInfo.tree);
-	$: selectedNode = getNodeByPath(pathInCompleteTree, selectedTreeInfo.tree);
 
 	$: currentLevelViz = levelVisuals[onLevel];
 
@@ -79,16 +78,7 @@
 	$: childrenYOffset = branchYEnd + childSize;
 	$: pYStart = yOffset + topExtend;
 
-	$: levelMetricFunction = getMetricCalcFuction(
-		levelMetrics[onLevel]?.selectedMetric,
-		qcSpec,
-		onLevel,
-		visibleNode,
-		rootMeta
-	);
-
 	$: nChildren = Object.keys(visibleNode?.children || {}).length;
-	$: colorStep = (levelColorScaleMax - levelColorScaleMin) / (nChildren || 1);
 
 	$: parentLinkSurface =
 		(width - 2 * linkEdgePadding) * (nChildren > 1 ? 1 - linkBetweenPadRate : 1);
@@ -102,9 +92,8 @@
 	$: totalChildLevelWeight = visibleTreeInfo.meta[childLevel]?.totalWeight;
 	$: totalChildrenWeight = visibleNode?.childrenSumWeight || 1;
 
-	function parseChild(childId: string, childNode: DerivedTreeNode) {
+	function parseChild(childId: string, childNode: EmbeddedNode) {
 		const childPath = [...pathInCompleteTree, childId];
-		const isSelected = Object.hasOwn(selectedNode?.children || {}, childId);
 		const childLevelRate = (childNode?.weight || 0) / totalChildLevelWeight;
 		const siblingRate = (childNode?.weight || 0) / totalChildrenWeight;
 
@@ -118,7 +107,6 @@
 			) + treeXOffset;
 
 		const childWidth = minimumChildWidth + divisibleSpace * childLevelRate;
-
 		const lSize = {
 			parent: parentLinkSurface * siblingRate,
 			child: childWidth - 2 * linkEdgePadding
@@ -144,35 +132,27 @@
 			end: [p1.start[0] + lSize.parent, pYStart]
 		};
 
-		const ySize = childSize + (isSelected ? overHangSize : 0);
+		const ySize = childSize + (childNode.isSelected ? overHangSize : 0);
 		// @ts-ignore
 		const downWardP = `${rectangleLinkPath(p1)} v ${ySize} h ${lSize.child}`;
 		// @ts-ignore
 		const upWardP = `v ${-ySize} ${rectangleLinkPath(p2)} v ${-topExtend} h ${-lSize.parent}`;
 		const linkPath = downWardP + upWardP + ` v ${topExtend}`;
-		const childScaleMin =
-			levelColorScaleMin + (childNode?.totalOffsetAmongSiblings.rank || 0) * colorStep;
-		const childScaleMax = childScaleMin + colorStep;
-		const colorRate = (childScaleMax + childScaleMin) / 2;
-
-		const specMetric = levelMetricFunction(childNode?.weight, childId);
 
 		return {
+			id: childId,
 			cachedProps: {
 				width: childWidth,
 				xOffset: childXOffset,
-				pathInCompleteTree: childPath,
-				levelColorScaleMax: childScaleMax,
-				levelColorScaleMin: childScaleMin
+				pathInCompleteTree: childPath
 			},
-			linkPath,
-			isSelected,
-			colorRate,
-			specMetric,
-			name: getChildName(childId, attributeLabels, qcSpec, onLevel) || '',
-			width: lSize.child,
-			colorStr: getColor(colorRate),
-			strId: childPath.join('-')
+			vizInfo: {
+				linkPath,
+				width: lSize.child,
+				colorStr: getColor(childNode.scaleEnds.mid),
+				strId: childPath.join('-')
+			},
+			childNode
 		};
 	}
 
@@ -190,76 +170,77 @@
 		);
 	}
 
-	function getParsedChildren(
-		visibleNode: DerivedTreeNode | undefined,
-		_: object,
-		__: MetricCalculator
-	) {
-		return Object.entries(visibleNode?.children || {}).map(([id, child]) => ({
-			id,
-			parsedChild: parseChild(id, child)
-		}));
+	function getParsedChildren(visibleNode: EmbeddedNode | undefined, _: object) {
+		return Object.entries(visibleNode?.children || {}).map(([id, child]) => parseChild(id, child));
 	}
 
-	$: parsedChildren = getParsedChildren(visibleNode, currentLevelViz, levelMetricFunction);
+	$: parsedChildren = getParsedChildren(visibleNode, currentLevelViz);
 </script>
 
-{#each parsedChildren as { id, parsedChild }}
+{#each parsedChildren as { id, cachedProps, vizInfo, childNode } (id)}
 	<defs>
-		<linearGradient id="path-grad-{parsedChild.strId}" gradientTransform="rotate(90)">
+		<linearGradient id="path-grad-{vizInfo.strId}" gradientTransform="rotate(90)">
 			<stop
 				offset="0%"
-				stop-opacity={parsedChild.isSelected ? '80%' : '0%'}
-				stop-color={parsedChild.colorStr}
+				stop-opacity={childNode.isSelected ? '80%' : '5%'}
+				stop-color={vizInfo.colorStr}
 			/>
 			<stop
 				offset="20%"
-				stop-opacity={parsedChild.isSelected ? '80%' : '5%'}
-				stop-color={parsedChild.colorStr}
+				stop-opacity={childNode.isSelected ? '80%' : '15%'}
+				stop-color={vizInfo.colorStr}
 			/>
 			<stop
 				offset="50%"
-				stop-opacity={parsedChild.isSelected ? '80%' : '25%'}
-				stop-color={parsedChild.colorStr}
+				stop-opacity={childNode.isSelected ? '80%' : '25%'}
+				stop-color={vizInfo.colorStr}
 			/>
 		</linearGradient>
 	</defs>
-	<!-- <g transition:fade={{ duration: 200 }}> -->
+
+	<path
+		transition:fade={{ duration: 300 }}
+		d={vizInfo.linkPath}
+		fill="url('#path-grad-{vizInfo.strId}')"
+	/>
+	<rect
+		fill-opacity={0.25 + Math.abs(childNode.specMetric.normalizedMetric) / 1.5}
+		x={cachedProps.xOffset + linkEdgePadding / 4}
+		y={branchYEnd +
+			childSize / 2 -
+			(childNode.specMetric.normalizedMetric < 0
+				? 0
+				: (childNode.specMetric.normalizedMetric * childSize) / 2)}
+		height={(Math.abs(childNode.specMetric.normalizedMetric) * childSize) / 2}
+		width={treeWidth / 200}
+	/>
+
+	<g style="--y-off: {childrenYOffset}px; --x-off: {cachedProps.xOffset + 0.5}px">
+		<BrokenFittedText text={childNode.name} width={vizInfo.width} height={childSize} />
+	</g>
+
 	<!-- svelte-ignore a11y-mouse-events-have-key-events -->
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<!-- svelte-ignore a11y-no-static-element-interactions -->
-	<path
-		transition:fade={{ duration: 300 }}
-		d={parsedChild.linkPath}
-		fill="url('#path-grad-{parsedChild.strId}')"
-		on:mouseover={treeInteract('highlight', id, parsedChild.specMetric.rawMetric)}
-		on:mouseleave={treeInteract('de-highlight', id, 0)}
-		on:click={treeInteract('toggle-select', id, 0)}
-	/>
 	<rect
-		fill-opacity={0.25 + Math.abs(parsedChild.specMetric.normalizedMetric) / 1.5}
-		x={parsedChild.cachedProps.xOffset + linkEdgePadding / 4}
-		y={branchYEnd +
-			childSize / 2 -
-			(parsedChild.specMetric.normalizedMetric < 0
-				? 0
-				: (parsedChild.specMetric.normalizedMetric * childSize) / 2)}
-		height={(Math.abs(parsedChild.specMetric.normalizedMetric) * childSize) / 2}
-		width={treeWidth / 200}
+		x={cachedProps.xOffset + linkEdgePadding}
+		y={branchYEnd}
+		fill-opacity="0"
+		height={childSize}
+		width={vizInfo.width}
+		on:mouseover={treeInteract('highlight', id, cachedProps.xOffset, branchYEnd)}
+		on:mouseleave={treeInteract('de-highlight', id, 0, 0)}
+		on:click={treeInteract('toggle-select', id, 0, 0)}
 	/>
-	<g style="--y-off: {childrenYOffset}px; --x-off: {parsedChild.cachedProps.xOffset + 0.5}px">
-		<BrokenFittedText text={parsedChild.name} width={parsedChild.width} height={childSize} />
-	</g>
 
-	{#if parsedChild.isSelected}
+	{#if childNode.children}
 		<svelte:self
-			{...parsedChild.cachedProps}
+			{...cachedProps}
 			{qcSpec}
 			{attributeLabels}
 			{visibleTreeInfo}
-			{selectedTreeInfo}
+			{selectionState}
 			{levelVisuals}
-			{levelMetrics}
 			{rootMeta}
 			{treeWidth}
 			{treeXOffset}
@@ -281,9 +262,5 @@
 	g {
 		transition: transform 0.8s;
 		transform: translate(var(--x-off), var(--y-off));
-	}
-
-	rect {
-		fill: var(--color-metric-base);
 	}
 </style>
