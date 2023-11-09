@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { getColorArr } from '$lib/style-util';
-	import type { TreeNode } from '$lib/tree-types';
+	import type { NamedNode } from '$lib/tree-types';
 	import BrokenFittedText from './BrokenFittedText.svelte';
 	import { fade } from 'svelte/transition';
 
-	export let data: TreeNode;
+	export let data: NamedNode;
 	export let maxPad = 10;
 	export let width = 1000;
 	export let height = 1000;
@@ -25,7 +25,7 @@
 	}
 
 	function bsp(
-		subc: TreeNode[],
+		subc: NamedNode[],
 		offsets: number[],
 		sizes: number[],
 		sumWeight: number,
