@@ -18,7 +18,7 @@
 		{ src: cesarPortrait, name: 'César A. Hidalgo', role: 'CCL Director' },
 		{ src: endrePortrait, name: 'Endre Borza', role: 'Research Data Engineer' },
 		{ src: veraPortrait, name: 'Veronika Hamar', role: 'CCL Budapest Executive Director' },
-		{ src: matePortrait, name: 'Máté Barkóczi', role: 'Design Intern' }
+		{ src: matePortrait, name: 'Jolopukki', role: 'Design Stuffer' }
 	];
 </script>
 

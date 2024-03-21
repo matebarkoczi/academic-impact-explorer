@@ -9,7 +9,7 @@
 	import TileTreeMap from '$lib/components/TileTreeMap.svelte';
 
 	const dCards = [
-		{ desc: 'Works', num: dStats.counts.work, color: 15 },
+		{ desc: 'Works', num: dStats.counts.work, color: 85 },
 		{ desc: 'Institutions', num: dStats.counts.inst, color: 25 },
 		{ desc: 'Citations', num: dStats.counts.cite, color: 50 },
 		{ desc: 'Countries', num: dStats.counts.country, color: 90 }
@@ -110,7 +110,7 @@
 	h1 {
 		text-align: center;
 		margin-bottom: 20px;
-		font-size: 300%;
+		font-size: 200%;
 	}
 
 	p {
@@ -134,7 +134,7 @@
 		padding: 30px;
 		margin: 20px;
 		border-radius: 3px;
-		background-color: rgba(var(--cur), 0.15);
+		background-color: rgba(var(--cur), 10);
 		flex: 0 0 200px;
 		border: 1px solid var(--cool-gray-20, #dde1e6);
 		box-shadow: 0px 4px 13px 0px rgba(0, 0, 0, 0.25);
